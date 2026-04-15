@@ -1,0 +1,285 @@
+# flask 클래스를 import 한다
+from flask import Flask, render_template, url_for, request, redirect, flash, g, render_temlate, make_response, session
+from email_validator import validate_email, EmailNotValidError
+from flask_debugtoolbar import DebugToolbarExtension
+from flask_mail import Mail, Message
+
+import logging
+
+# flask 클래스를 인스턴스화한다.
+app = Flask(__name__)
+
+# SECRET_KEY를 추가한다.
+app.config["SECRET_KEY"] = "2AZSMss3p5QPbcY2hBsJ"
+
+# 로그 레벨을 설정한다.
+app.logger.setLevel(logging.DEBUG)
+
+# 로깅
+# 개발 시나 운용 시에 옟기치 않은 오류가 발생하는 경우 등
+# 앱에서 무슨 일이 발생하고 있는지를 확인해야 할 상황이 있는데 그럴 때에 로거가 유용하다.
+# 로거에는 로그 레벨이 있으며, 지정한 로그 레벨보다도 레벨이 높은 로그만 출력 된다.
+# 예를 들어 로그 레벨이 ERROR로 설정하면 ERROR나 CRITICAL 수준의 로그만 출력된다.
+# 개발 시에는 로그 레벨을 DEBUG로 해두고,
+# 라이브 환경에서는 로그 레벨을 ERROR로 하는 등 환경에 따라 로그 레벨을 전환 한다.
+
+# 로그 레벨
+# CRITICAL : 치명적 오류 -> 프로그램의 이상 종료를 수반하는 것과 같은 오류 정보
+# ERROR    : 오류        -> 예기치 않은 실행 시 오류 정보
+# WARNING  : 경고        -> 오류에 가까운 현상 등의 준정상계(Abnormal)정보
+# INFO     : 정보        -> 정상 동작의 확인에 필요한 정보
+# DEBUG    : 디버그 정보  -> 개발 시 필요한 정보
+# * 플라스크는 파이썬  표준 logging 모듈을 이용합니다.
+# 로그 레벨은 apps/minimalapp/app.py에 app.logger.setLevel 함수를 사용하여 지정한다.
+
+
+# 리다이렉트를 중단하지 않도록 한다
+app.config["DEBUG_TB_INTERCEPT_REDIRECTS"] = False
+
+# DebugToolbarExtension에 애플리케이션을 설정한다.
+toolbar = DebugToolbarExtension(app)
+
+# 1. DebugToolbarExtension을 import한다.
+# 2. 리다이렉트를 중단하지 않도록 하는 config를 설정한다.
+# 리다이렉트하면 요청한 값을 flask-debugtoolbar에서 확인할 수 없게 되므로 디폴트는 True(리다이렉트를 중단)로 되어 있다.
+# 3. import한 DebugToolbarExtension에 앱을 설정한다.
+
+# Mail 클래스의 config를 추가.
+# app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER")
+# app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
+# app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "True") == "True"
+# app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
+# app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
+# app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER") 
+
+# flask-mail 확장 등록을 한다.
+# mail = Mail(app)
+# 기본적인 flask-mail의 설정
+# MAIL_SERVER         : localhost -> 이메일 서버의 호스트명
+# MAIL_PORT           : 25        -> 이메일 서버의 포트
+# MAIL_USE_TLS        : False     -> TLS를 유효로 하는가?
+# MAIL_DEBUG          : app.debug -> 디버그 모드
+# MAIL_USERNAME       : None      -> 송신자 이메일 주소
+# MAIL_PASSWORD       : None      -> 송신자 이메일 주소의 비밀번호
+# MAIL_DEFAULT_SENDER : None      -> 이메일의 송신자명과 이메일 주소
+
+
+
+
+# URL과 실행할 함수를 매핑한다.
+@app.route("/")
+def index():
+    return "Hello, Flaskbook!"
+
+@app.route("/hello/<name>", endpoint="hello_endpoint")
+def hello(name):
+    return f"Hello, {name}!"
+# flask2부터는 @app.get("/hello"), @app.post("/hello")라고 기술하는 것이 가능
+# @app.get("/hello")
+# @app.post("/hello")
+# def hello():
+#     return "Hello, World!"
+
+@app.route("/name/<name>")
+def show_name(name):
+    # 변수를 템플릿 엔진에게 건넨다.
+    return render_template("index.html", name=name)
+
+with app.test_request_context("/users?updated=true"):
+    # / 
+    print(url_for("index"))
+    #/hello/world
+    print(url_for("hello_endpoint", name="world"))
+    # /name/AK?page=1
+    print(url_for("show_name", name="AK", page="1"))
+    # 출력한다.
+    print(request.args.get("updated"))
+
+
+# PRG 패턴
+# POST / REDIRECT / GET 방식
+@app.route("/contact")
+def contact():
+    # 응답 객체를 취득한다.
+    response = make_response(render_template("contact.html"))
+
+    # 쿠키를 설정한다
+    response.set_cookie("flaskbook key", "flaskbook value")
+
+    # 세션을 설정한다.
+    session["username"] = "AK"
+    
+    # 응답 오브젝트를 반환한다.
+    return response
+"""
+ 1. make_response와 session을 추가로 import합니다.
+ 2. render_template을 make_response 함수에 건네고, 응답 객체를 취득한다.
+ 3. set_cookie 함수의 key에 flaskbook key, value에 flaskbook value를 설정한다.
+ 4. session["username"]에 값을 설정한다
+ 5. 응답 객체를 반환한다.
+"""
+
+@app.route("/contact/complete", methods=["GET", "POST"])
+def contact_complete():
+    if request.method == "POST":
+        # form 속성을 사용해서 폼의 값을 취득한다.
+        username = request.form["username"]
+        email = request.form["email"]
+        description = request.form["description"]
+
+        # 입력 체크
+        is_valid = True
+
+        if not username:
+            flash("사용자명은 필수입니다.")
+            is_valid = False
+
+        if not email:
+            flash("메일 주소는 필수입니다.")
+            is_valid = False
+
+        try:
+            validate_email(email)
+        except EmailNotValidError:
+            flash("메일 주소의 형식으로 입력해 주세요.")
+            is_valid = False
+        
+        if not description:
+            flash("문의 내용은 필수입니다")
+            is_valid = False
+        
+        if not is_valid:
+            return redirect(url_for("contact"))
+
+
+        # 이메일을 보낸다
+       # send_email(
+       # email,
+       # "문의 감사합니다.",
+       # "contact_mail",
+       # username=username,
+       # description=description,
+       # )
+
+        # contact 엔드포인트로 리다이렉트한다.
+
+        flash("문의해 주셔서 감사합니다.")
+
+        return redirect(url_for("contact_complete"))
+    
+    return render_template("contact_complete.html")
+
+
+"""def send_email(to, subjext, template, **kwargs):
+#    메일을 송신하는 함수
+    msg = Message(subject, recipients = [to])
+    msg.body = render_template(template + ".txt", **kwargs)
+    msg.html = render_template(template + ".html", **kwargs)
+    mail.send(msg)
+"""
+
+"""
+ 1. 이메일 주소 형식 체크용 validate_email과 EmailNotvalidError를 import합니다.
+ 2. flash를 추가로 import한다.
+ 3. 사용자명, 이메일주소, 문의 내용 입력란이 비어 있으면 flash에 오류 메시지를 설정한다.
+ 4. email이 이메일 주소의 형식인지 여부를 validate_email 함수로 확인한다.
+ 형식이 정확하지 않은 경우는 예외가 발생하므로 try-except로 감싼다.
+ 5. POST 값에 문제가 없는 경우는 Flash 메시지에 "문의해 주셔서 감사합니다."를 설정하고, 문의 완료 화면을 리다이렉트 한다.
+"""
+"""
+ CSRF 란?
+ CSRF는 크로스 사이트 요청 포저리스의 약어로 웹 앱의 취약성 중 하나이다.
+ 공격자는 사용자의 브라우저에 공격용 웹사이트를 표시해 의도하지 않은 요청을 서버에 송신한다.
+ 웹 앱이 사용자로부터의 요청에 대해서 CSRF 대책을 대응해 놓지 않은 경우, 이 요청을 정상적인 것으로 취급한다.
+ CSRF 대책으로는 서버가 폼 데이터를 반환할 때에 랜덤한 토큰(token)을 생성하여 보관해 둔다.
+ 사용자로부터 요청이 있었을 때에 생성해 둔 토큰이 요청의 토큰과 일치하는지 여부를 체크해 올바른 요청인지 여부를 판단한다.
+
+ Flash 메시지
+ Flash 메시지는 동작 실행 후에 간단한 메시지를 표시하는 기능
+ 완료 시나 오류 발생 시 등 일시적으로 메시지를 표시할 때 이용
+
+ 1. 유효성 검증(밸리데이션) 추가하기
+ 문의 폼 화면에 유효성 검증(입력 체크 처리)을 추가
+ 입력 체크 시 오류가 있다면 Flash 메시지를 사용하여 한 번만 오류 정보를 표시
+
+
+ Flash 메시지는 flash 함수를 사용하여 설정
+ 템플렛에서 get_flashed_messager 함수를 사용하여 취득해 표시
+ Flash 메시지를 이요하려면 세션이 필요하므로 config의 SECRET_KEY를 설정해야 함.
+ config는 앱을 이용하는데 필요한 설정이다.
+ config에 값을 설정하려면 app.config["config_key"] = config_value 와 같이 지정한다.
+ SECRET_KEY 설정하기
+ 세션을 사용하려면 세션 정보 보안을 위해 비밀 키(SECTET_KEY)를 설정해야 한다.
+ 비밀 키는 랜덤한 값으로 해야 한다.
+"""
+
+"""
+1.4 쿠키
+ 쿠키는 클라이언트의 브라우저와 웹 서버와의 사이에서 상태를 관리하기 위해서 브라우저에 저장된 정보와 그 구조를 가리킨다.
+ 서버에서 받아 브라우저에 보존된 쿠키 정보는 요청과 함께 쿠키를 보냈던 서버로 보내진다.
+ 프랄스크에서 쿠키로부터 값을 취득하는 데는 요청 객체(request)를 사용한다.
+ 또한 값의 설정에는 make_response로 얻은 응답 객체(response)를 사용한다.
+ 쿠키로부터 값을 취득하기
+ from flask import request
+ key를 지정한다.
+ username = request.cookies.get("username")
+ 쿠키로 값을 설정하기
+ from flask import make_response, render_template
+ response = make_response(render_template("contact.html"))
+ key와 value를 설정한다.
+ response,set_cookie("username", "AK")
+ 쿠키로부터 값을 삭제하기
+ from flask import make_response, render_template, response
+ response = make_response(render_template("contact.html"))
+ response.delete_cookie("username")
+"""
+
+"""
+1.5 세션
+ 세션은 사용자의 로그인 정보 등을 서버에 유지하고, 일련의 처리를 계속적으로 실시할 수 있도록 하는 구조
+ HTTP는 스테이트리스이므로 상태를 유지할 수 없지만,
+ 쿠키를 사용한 세션 관리 구조를 이용함으로써 사용자가 일련의 처리를 연속적으로 할 수 있다.
+ 1. 사용자가 로그인 조작을 한다.
+ 2. 서버는 세션ID를 발행하고 사용자 정보를 연결하여 정보를 유지한다.
+ 3. 세션ID를 브라우저의 쿠키에 저장한다.
+ 4. 이후 요청 시 보내지는 쿠키로부터 세션 ID를 취득하고 연결된 사용자를 취득한다.
+ 5. 취득한 사용자에게 필요한 처리를 하거나 정보를 반환한다.
+ 플라스크에서 세션을 다루려면 session을 import합니다.
+ 또한 1.3절의 Flash 메시지에서 설명한 바와 같이 세션을 다루려면 config에 SECRET_KEY를 설정해야 한다.
+ 
+세션에 값 설정하기
+ from flask import ssession
+ session["username"] = "AK"
+세션으로부터 값을 취득하기
+ from flask import session
+ username = session["username"]
+세션으로부터 값을 삭제하기
+ from flask import session
+ session.pop("username", None)
+"""
+
+"""
+1.6 응답
+ 응답(response)은 브라우저로부터 온 요청에 대해 서버가 클라이언트에게 반환하는 응답.
+ 플라스크에서는 통상
+ return render_template("contact_complete.html")
+대표적인 응답 객체(response)의 속성 및 메서드
+ - status_code   : 응답 상태 코드
+ - headers       : 응답 헤더
+ - set_cookie    : 쿠키를 설정한다.
+ - delete_cookie : 쿠키를 삭제한다.
+문의 폼의 엔드포인트에 응답 객체(response)를 취득하는 처리를 추가하고, 동작을 확인해 보자.
+"""
+
+"""
+1장 마무리
+ - 앱을 작성하고 문의 폼 기능을 추가
+ - 플라스크에서의 웹 앱개발의 흐름 및 플라스크의 기본적인 기능에 대해 알아봤다.
+pip install한 확장 또는 패키지
+ python-dotenv      : 환경 변수 .env 파일로부터 읽어 들인다.
+ email-validator    : 이메일 주소 형식을 체크한다.
+ flask-debugtoolbar : 플라스크 앱 개발 보조 도구
+ flask-mail         : 이메일을 송신한다.
+"""
+
+# p85까지 완료
